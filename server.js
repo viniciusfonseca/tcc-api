@@ -68,6 +68,9 @@ const createImageAssociation = async user => {
 
 const WORD_REGEX = /^\w+$/
 
+
+app.get('/echo', async (req, res) => res.send("STATUS OK"))
+
 app.get('/translate', async (req, res) => {
 
     const phrase = (req.query.t || "").trim()

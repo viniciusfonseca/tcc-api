@@ -15,10 +15,7 @@ const Translation = db.define('translation', {
     lang_from: Sequelize.STRING,
     lang_to: Sequelize.STRING,
     translated: Sequelize.STRING,
-    translation: Sequelize.STRING
-})
-
-const TranslationContext = db.define('translation', {
+    translation: Sequelize.STRING,
     context: Sequelize.STRING
 })
 
@@ -69,12 +66,12 @@ const createImageAssociation = async user => {
 const WORD_REGEX = /^\w+$/
 
 
-app.get('/echo', async (req, res) => res.send("STATUS OK"))
+app.get('/echo', async (_, res) => res.send("STATUS OK"))
 
 app.get('/translate', async (req, res) => {
 
     const phrase = (req.query.t || "").trim()
-    const phrase_context = req.query.ctx
+    const context = req.query.ctx
 
     const { text, didYouMean } = await translate(phrase, { from: 'en', to: 'pt' })
 
@@ -89,15 +86,22 @@ app.get('/translate', async (req, res) => {
 
     if (!user_id) { return }
 
-    const w_count = await Translation.count({ where: { translation: text } })
+    const translation = await Translation.findOne({ where: { translation: text } })
 
-    if (w_count === 1) { return }
-
-    await Translation.create({
-        user_id,
-        translated: phrase,
-        translation: text
-    })
+    if (translation) {
+        if (!translation.context) {
+            await translation.update({ context })
+        }
+        return
+    }
+    else {
+        await Translation.create({
+            user_id,
+            translated: phrase,
+            translation: text,
+            context
+        })
+    }
 
     console.log(`Recording new transation: "${phrase}" --> "${text}"`)
 

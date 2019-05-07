@@ -204,6 +204,17 @@ app.get('/translate', async (req, res) => {
     await user.update({ t_count })
 })
 
+app.get('/translation/:id', async (req, res) => {
+
+    const id = req.params.id
+
+    const translation = await Translation.findOne({ where: { id } })
+
+    if (!translation) { return res.status(404).send() }
+
+    return res.status(200).send(translation.toJSON())
+})
+
 app.get('/test', async (req, res) => {
 
     const uid = req.query.uid
@@ -234,8 +245,16 @@ app.get('/test/:id', async (req, res) => {
 
     const exercises = await test.getExercises()
 
+    const rawExercises = exercises.map(
+        exercise => exercise.toJSON()
+    )
+    
+    rawExercises.forEach(exercise => {
+        exercise.meta = JSON.parse(exercise.meta)
+    })
+
     res.send({
-        exercises: exercises.map(exercise => exercise.toJSON())
+        exercises: rawExercises
     })
 })
 

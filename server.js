@@ -4,7 +4,8 @@ const Sequelize = require('sequelize')
 const cors = require('cors')
 const request = require('request')
 
-// const Op = Sequelize.Op
+const TRANSLATIONS_PER_EXERCISE = 10
+const EXERCISES_PER_TEST = 5
 
 const db = new Sequelize({
     dialect: "sqlite",
@@ -83,6 +84,8 @@ const createAssoc = async (exercise, translations) => {
     const t_ids = translations.map(translation => translation.id)
     const col1 = shuffle([ ...t_ids ])
     const col2 = shuffle([ ...t_ids ])
+
+    console.log('ASSOC META', JSON.stringify({ col1, col2 }))
     
     await exercise.update({ meta: JSON.stringify({ col1, col2 }) })
 }
@@ -94,18 +97,19 @@ const createFillInTheBlank = async (exercise, translations) => {
     const hasSufficientContexts = translationsWithContext.length >= 5
 
     if (!hasSufficientContexts) {
+        console.log('No sufficient contexts. Fallback to Assoc.')
         await exercise.update({ type: ExerciseTypes.ASSOC })
-        return createAssoc(exercise, translations)
+        return await createAssoc(exercise, translations)
     }
 
     const t_ids = translationsWithContext.map(translation => translation.id)
     const col1 = shuffle([ ...t_ids ])
     const col2 = shuffle([ ...t_ids ])
+
+    console.log('FILL_BLANK META', JSON.stringify({ col1, col2 }))
     
     await exercise.update({ meta: JSON.stringify({ col1, col2 }) })
 }
-
-const TRANSLATIONS_PER_EXERCISE = 10
 
 const createExercise = async (user) => {
 
@@ -119,25 +123,25 @@ const createExercise = async (user) => {
         order: [[ 'createdAt', 'DESC' ]]
     })
 
-    const exercise = Exercise.create({ type })
+    const exercise = await Exercise.create({ type })
     await exercise.setTranslations(translations)
-    exercise.setUser(user)
+    await exercise.setUser(user)
 
     switch (type) {
         case ExerciseTypes.FILL_BLANK:
             return createFillInTheBlank(exercise, translations)
         case ExerciseTypes.ASSOC:
         case ExerciseTypes.IMG_ASSOC:
-            return createAssoc(exercise)
+            return createAssoc(exercise, translations)
     }
 
 }
 
 const createTest = async (user, exercises) => {
-    const test = Test.create({ status: TEST_STATUS.PENDING })
+    const test = await Test.create({ status: TEST_STATUS.PENDING })
 
-    test.setUser(user)
-    test.setExercises(exercises)
+    await test.setUser(user)
+    await test.setExercises(exercises)
 
     return test
 }
@@ -145,7 +149,8 @@ const createTest = async (user, exercises) => {
 app.get('/translate', async (req, res) => {
 
     const phrase = (req.query.t || "").trim()
-    const context = req.query.ctx
+    console.log('context', req.query.ctx)
+    const context = decodeURIComponent(req.query.ctx)
 
     const { text, didYouMean } = await translate(phrase, { from: 'en', to: 'pt' })
 
@@ -191,8 +196,8 @@ app.get('/translate', async (req, res) => {
     ) {
         await createExercise(user)
         const exercises_without_test = await Exercise.findAll({ where: { testId: null } })
-        if (exercises_without_test.length >= 5) {
-            await createTest(user, exercises)
+        if (exercises_without_test.length >= EXERCISES_PER_TEST) {
+            await createTest(user, exercises_without_test)
         }
     }
 

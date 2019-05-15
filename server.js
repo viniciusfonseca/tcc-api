@@ -4,7 +4,7 @@ const Sequelize = require('sequelize')
 const cors = require('cors')
 const request = require('request')
 
-const TRANSLATIONS_PER_EXERCISE = 10
+const TRANSLATIONS_PER_EXERCISE = 6
 const EXERCISES_PER_TEST = 5
 
 const db = new Sequelize({
@@ -308,9 +308,9 @@ app.get('/test/:id', async (req, res) => {
  */
 app.post('/solve', async (req, res) => {
 
-    const user_response = req.body
+    const user_response = JSON.parse(req.body)
 
-
+    
 
 })
 

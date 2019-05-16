@@ -269,7 +269,7 @@ app.get('/test/:id', async (req, res) => {
             if (exercise.type === ExerciseTypes.FILL_BLANK) {
                 return col1.map(trId => {
                     const translation = exTranslations[exercise.id].find(({ id }) => trId === id)
-                    return {
+                    return translation && {
                         id: translation.id,
                         text: translation.translated
                     }
@@ -277,18 +277,18 @@ app.get('/test/:id', async (req, res) => {
             }
             return col1.map(trId => {
                 const translation = exTranslations[exercise.id].find(({ id }) => trId === id)
-                return {
+                return translation && {
                     id: translation.id,
                     text: translation.translation
                 }
             })
-        })()
+        })().filter(Boolean)
         exercise.col2 = (() => {
             if (exercise.type === ExerciseTypes.FILL_BLANK) {
-                return col2.map(trId => exTranslations[exercise.id].find(({ id }) => trId === id).context)
+                return col2.map(trId => (exTranslations[exercise.id].find(({ id }) => trId === id) || {}).context)
             }
-            return col2.map(trId => exTranslations[exercise.id].find(({ id }) => trId === id).translated)
-        })()
+            return col2.map(trId => (exTranslations[exercise.id].find(({ id }) => trId === id) || {}).translated)
+        })().filter(Boolean)
     })
 
     res.send({
@@ -306,12 +306,47 @@ app.get('/test/:id', async (req, res) => {
  *      ... and so on
  *  }
  */
-app.post('/solve', async (req, res) => {
+app.post('/test/:id/solve', async (req, res) => {
+
+    const test = await Test.findOne({ where: { id: req.params.id } })
+    if (!test) { return res.status(404).send() }
 
     const user_response = JSON.parse(req.body)
 
-    
+    const correction = {}
 
+    for (const [ exerciseId, col2res ] of Object.entries(user_response)) {
+        const { meta } = await Exercise.findOne({ where: { id: exerciseId } })
+        const { col2 } = JSON.parse(meta)
+        correction[exerciseId] = col2.map((id, i) => id === col2res[i])
+    }
+
+    await test.update({ status: TEST_STATUS.DONE })
+
+    res.status(200).send(correction)
+
+})
+
+app.get('/user/:id/dictionary', async (req, res) => {
+
+    const translations = await Translation.find({ where: { user_id: req.params.id } })
+
+    const rawTranslations = translations.map(
+        ({ translation, translated }) => ({ translation, translated })
+    )
+
+    res.status(200).send(rawTranslations)
+})
+
+app.get('/user/:id/tests', async (req, res) => {
+
+    const tests = await Test.find({ where: { userId: req.params.id } })
+
+    const rawTests = await tests.map(({ id, status }) => {
+        id, status
+    })
+
+    res.status(200).send(rawTests)
 })
 
 const BING_IMG_URL = "https://tse4.mm.bing.net/th"

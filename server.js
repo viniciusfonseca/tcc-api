@@ -43,7 +43,8 @@ const TEST_STATUS = {
 }
 
 const Test = db.define('test', {
-    status: Sequelize.STRING
+    status: Sequelize.STRING,
+    points: Sequelize.INTEGER
 })
 
 Test.belongsTo(User)
@@ -329,7 +330,7 @@ app.post('/test/:id/solve', async (req, res) => {
 
 app.get('/user/:id/dictionary', async (req, res) => {
 
-    const translations = await Translation.find({ where: { user_id: req.params.id } })
+    const translations = await Translation.findAll({ where: { user_id: req.params.id } })
 
     const rawTranslations = translations.map(
         ({ translation, translated }) => ({ translation, translated })
@@ -340,11 +341,11 @@ app.get('/user/:id/dictionary', async (req, res) => {
 
 app.get('/user/:id/tests', async (req, res) => {
 
-    const tests = await Test.find({ where: { userId: req.params.id } })
+    const tests = await Test.findAll({ where: { userId: req.params.id } })
 
-    const rawTests = await tests.map(({ id, status }) => {
+    const rawTests = tests.map(({ id, status }) => ({
         id, status
-    })
+    }))
 
     res.status(200).send(rawTests)
 })

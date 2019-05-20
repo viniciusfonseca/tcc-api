@@ -18,7 +18,8 @@ const Translation = db.define('translation', {
     lang_to: Sequelize.STRING,
     translated: Sequelize.STRING,
     translation: Sequelize.STRING,
-    context: Sequelize.STRING
+    context: Sequelize.STRING,
+    active: Sequelize.INTEGER
 })
 
 const User = db.define('user', {
@@ -44,7 +45,9 @@ const TEST_STATUS = {
 
 const Test = db.define('test', {
     status: Sequelize.STRING,
-    points: Sequelize.INTEGER
+    points: Sequelize.INTEGER,
+    max_points: Sequelize.INTEGER,
+    notified: Sequelize.INTEGER
 })
 
 Test.belongsTo(User)
@@ -53,6 +56,7 @@ Exercise.belongsTo(Test)
 
 const app = express()
 
+app.use(express.json())
 app.use(cors())
 
 const ExerciseTypes = {
@@ -120,7 +124,7 @@ const createExercise = async (user) => {
 
     const translations = await Translation.findAll({
         limit: TRANSLATIONS_PER_EXERCISE,
-        where: { user_id: id },
+        where: { user_id: id, active: 1 },
         order: [[ 'createdAt', 'DESC' ]]
     })
 
@@ -139,7 +143,7 @@ const createExercise = async (user) => {
 }
 
 const createTest = async (user, exercises) => {
-    const test = await Test.create({ status: TEST_STATUS.PENDING })
+    const test = await Test.create({ status: TEST_STATUS.PENDING, notified: 0 })
 
     await test.setUser(user)
     await test.setExercises(exercises)
@@ -179,14 +183,15 @@ app.get('/translate', async (req, res) => {
             user_id,
             translated: phrase,
             translation: text,
-            context
+            context,
+            active: 1
         })
     }
 
     console.log(`Recording new transation: "${phrase}" --> "${text}"`)
     
     const t_count = await Translation.count({
-        where: { user_id }
+        where: { user_id, active: 1 }
     })
 
     const [ user ] = await User.findCreateFind({ where: { id: user_id } })
@@ -214,6 +219,19 @@ app.get('/translation/:id', async (req, res) => {
     if (!translation) { return res.status(404).send() }
 
     return res.status(200).send(translation.toJSON())
+})
+
+app.delete('/translation/:id', async (req, res) => {
+
+    const id = req.params.id
+
+    const translation = await Translation.findOne({ where: { id } })
+
+    if (!translation) { return res.status(404).send() }
+
+    await translation.update({ active: 0 })
+
+    res.status(200).send()
 })
 
 app.get('/test', async (req, res) => {
@@ -312,17 +330,28 @@ app.post('/test/:id/solve', async (req, res) => {
     const test = await Test.findOne({ where: { id: req.params.id } })
     if (!test) { return res.status(404).send() }
 
-    const user_response = JSON.parse(req.body)
-
+    let points = 0
+    let total_points = 0
     const correction = {}
 
-    for (const [ exerciseId, col2res ] of Object.entries(user_response)) {
+    for (const [ exerciseId, col2res ] of Object.entries(req.body)) {
         const { meta } = await Exercise.findOne({ where: { id: exerciseId } })
         const { col2 } = JSON.parse(meta)
-        correction[exerciseId] = col2.map((id, i) => id === col2res[i])
+        correction[exerciseId] = col2
+        for (let i = 0; i < col2res.length; i++) {
+            points += col2res[i] === col2[i]
+        }
+        total_points += col2.length
     }
 
-    await test.update({ status: TEST_STATUS.DONE })
+    correction.total_points = total_points
+    correction.points = points
+
+    await test.update({
+        status: TEST_STATUS.DONE,
+        max_points: total_points,
+        points
+    })
 
     res.status(200).send(correction)
 
@@ -330,24 +359,46 @@ app.post('/test/:id/solve', async (req, res) => {
 
 app.get('/user/:id/dictionary', async (req, res) => {
 
-    const translations = await Translation.findAll({ where: { user_id: req.params.id } })
+    const translations = await Translation.findAll({ where: { user_id: req.params.id, active: 1 } })
 
     const rawTranslations = translations.map(
-        ({ translation, translated }) => ({ translation, translated })
+        ({ id, translation, translated }) => ({ id, translation, translated })
     )
 
     res.status(200).send(rawTranslations)
+})
+
+app.get('/user/:id/dictionary/reset', async (req, res) => {
+
+    await Translation.updateAll({ active: 0 }, { where: { use_id: req.params.id } })
+
+    res.status(200).send()
 })
 
 app.get('/user/:id/tests', async (req, res) => {
 
     const tests = await Test.findAll({ where: { userId: req.params.id } })
 
-    const rawTests = tests.map(({ id, status }) => ({
-        id, status
+    const rawTests = tests.map(({ id, status, points, max_points }) => ({
+        id, status, points, max_points
     }))
 
     res.status(200).send(rawTests)
+})
+
+app.get('/user/:id/notify_test', async (req, res) => {
+
+    const notify_test = await Test.findOne({ where: { userId: req.params.id, notified: 0 } })
+
+    res.status(200).send({ notify: !!notify_test })
+})
+
+app.put('/user/:id/notify_test', async (req, res) => {
+    const notify_test = await Test.findOne({ where: { userId: req.params.id, notified: 0 } })
+
+    await notify_test.update({ notified: 1 })
+
+    res.status(200).send()
 })
 
 const BING_IMG_URL = "https://tse4.mm.bing.net/th"

@@ -8,6 +8,8 @@ const WORD_REGEX = /^\w+$/
 
 translateRouter.get('/', async (req, res) => {
 
+    console.log({ query: req.query })
+
     const phrase = (req.query.t || "").trim()
     // console.log('context', req.query.ctx)
     const context = decodeURIComponent(req.query.ctx)

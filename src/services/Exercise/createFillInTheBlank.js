@@ -1,4 +1,5 @@
 import { createAssoc } from "./createAssoc"
+import { ExerciseTypes } from "../../models/Exercise"
 
 export async function createFillInTheBlank(exercise, translations) {
 

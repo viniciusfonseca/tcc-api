@@ -2,6 +2,7 @@ import { Router } from "express";
 import { TEST_STATUS, Test } from "../models/Test";
 import { findTestExercises } from "../services/Test/findTestExercises";
 import { solveTest } from "../services/Test/solveTest";
+import { Translation } from "../models/Translation";
 
 export const testRouter = Router()
 
@@ -23,6 +24,14 @@ testRouter.get('/', async (req, res) => {
     res.send({ test_id })
 })
 
+if (process.env.NODE_ENV === "test") {
+    testRouter.get('/dump_translations', async (req, res) => {
+    
+        const translations = await Translation.findAll({ raw: true })
+        res.status(200).send(translations)
+    })
+}
+
 testRouter.get('/:id', async (req, res) => {
 
     const test_id = req.params.id
@@ -36,7 +45,7 @@ testRouter.get('/:id', async (req, res) => {
     res.send({ exercises })
 })
 
-testRouter.post('/test/:id/solve', async (req, res) => {
+testRouter.post('/:id/solve', async (req, res) => {
     
     const test = await Test.findOne({ where: { id: req.params.id } })
     if (!test) { return res.status(404).send() }

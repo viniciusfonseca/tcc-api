@@ -9,7 +9,7 @@ describe('translation tests', () => {
         const params = {
             t: `Hello World`,
             ctx: "",
-            uid: parseInt(new Date()),
+            uid: +(new Date()),
             lang: `en`
         }
 
@@ -23,7 +23,7 @@ describe('translation tests', () => {
         const params = {
             t: `bonjour`,
             ctx: "",
-            uid: parseInt(new Date()),
+            uid: +(new Date()),
             lang: `fr`
         }
 

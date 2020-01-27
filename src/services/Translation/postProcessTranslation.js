@@ -30,7 +30,7 @@ export async function postProcessTranslation({
         })
     }
 
-    console.log(`Recording new transation: "${phrase}" --> "${text}"`)
+    console.log(`Recording new translation: "${phrase}" --> "${text}"`)
     
     const t_count = await Translation.count({
         where: { user_id, active: 1 }

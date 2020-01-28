@@ -12,16 +12,16 @@ export async function postProcessTranslation({
     phrase
 }) {
     
-    const translation = await Translation.findOne({ where: { translation: text } })
+    let translation = await Translation.findOne({ where: { translation: text } })
 
     if (translation) {
         if (!translation.context) {
             await translation.update({ context })
         }
-        return
+        return translation
     }
     else {
-        await Translation.create({
+        translation = await Translation.create({
             user_id,
             translated: phrase,
             translation: text,
@@ -50,4 +50,6 @@ export async function postProcessTranslation({
     }
 
     await user.update({ t_count })
+
+    return translation
 }

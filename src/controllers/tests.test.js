@@ -1,4 +1,5 @@
-import { writeFile } from 'fs'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import { createClient } from "../test-utils/createClient"
 import { wait } from "../core/wait"
 import { promiseSeq } from "../core/promiseSeq"
@@ -12,24 +13,6 @@ describe('tests tests', () => {
         return config
     })
 
-    /**
-     * 
-     * @param {string} word 
-     */
-    async function insertTranslation(word) {
-
-        const params = {
-            t: word,
-            ctx: "",
-            uid: parseInt(new Date()),
-            lang: `en`
-        }
-
-        const { data } = await api.get('/translate', { params })
-
-        return data.translated
-    }
-
     async function createExercise(words) {
         return promiseSeq(words.map(word =>
             () => insertTranslation(word)
@@ -38,57 +21,16 @@ describe('tests tests', () => {
 
     it('creates a test', async () => {
 
-        await createExercise([
-            'book',
-            'table',
-            'world',
-            'pencil',
-            'notebook',
-            'school'
-        ])
-        await wait(300)
-        await createExercise([
-            'car',
-            'road',
-            'wheel',
-            'seat',
-            'truck',
-            'bicycle'
-        ])
-        await wait(300)
-        await createExercise([
-            'work',
-            'charts',
-            'pen',
-            'shirt',
-            'pants',
-            'shoe'
-        ])
-        await wait(300)
-        await createExercise([
-            'math',
-            'function',
-            'subtraction',
-            'division',
-            'multiplication',
-            'exponentiation'
-        ])
-        await wait(300)
-        await createExercise([
-            'grammar',
-            'nouns',
-            'adjective',
-            'verbs',
-            'subject',
-            'predicate'
-        ])
-        await wait(300)
+        const translationsSeed = JSON.parse(readFileSync(join(__dirname, 'translations.dump.json')))
 
-        const { data: translations } = await api.get('/test/dump_translations')
-        writeFile('./translations.dump.json', JSON.stringify(translations), function() {})
+        await Promise.all(
+            translationsSeed.map(
+                translation => api.post('/translation', translation)
+            )
+        )
 
         const { data } = await api.get(`/user/${uid}/notify_test`)
         expect(data.notify).toBe(true)
 
-    }, 30000)
+    })
 })

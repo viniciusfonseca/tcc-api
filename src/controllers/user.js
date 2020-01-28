@@ -35,7 +35,7 @@ userRouter.get('/:id/tests', async (req, res) => {
 
 userRouter.get('/:id/notify_test', async (req, res) => {
     const notify_test = await Test.findOne({ where: { userId: req.params.id, notified: 0 } })
-
+     
     res.status(200).send({ notify: !!notify_test })
 })
 

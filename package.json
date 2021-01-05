@@ -5,7 +5,7 @@
   "main": "server.js",
   "dependencies": {
     "@vitalets/google-translate-api": "^2.8.0",
-    "axios": "^0.19.2",
+    "axios": "^0.21.1",
     "cors": "^2.8.5",
     "express": "^4.16.4",
     "morgan": "^1.9.1",
